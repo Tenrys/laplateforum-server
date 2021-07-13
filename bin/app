@@ -1,0 +1,20 @@
+#! /usr/bin/env node
+
+// Register module aliases
+const paths = {};
+const mainPath = __dirname.split("/").slice(0, -1).join("/") + "/";
+for (const [alias, path] of Object.entries(require("../jsconfig.json").compilerOptions.paths)) {
+  if (alias.includes("*")) continue;
+  paths[alias] = mainPath + path.join(); // [ 'flat' ] -> 'flat'
+}
+
+require("module-alias").addAliases(paths);
+
+// Load environment variables from .env file.
+require("dotenv").config();
+
+// Pass configuration to application
+require("../")({
+  port: 8000,
+  host: "localhost",
+});
