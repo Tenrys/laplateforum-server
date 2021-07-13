@@ -1,4 +1,4 @@
-const { logger } = require("@/logger").scoped("models");
+const { logger } = require("@/logger").scoped("Models");
 
 try {
   logger.wait("Loading models");

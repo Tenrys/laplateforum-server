@@ -1,4 +1,4 @@
-const { logger } = require("@/logger").scoped("database");
+const { logger } = require("@/logger").scoped("Database");
 
 const path = require("path");
 const Knex = require("knex");

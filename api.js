@@ -1,4 +1,4 @@
-const { logger } = require("@/logger").scoped("api");
+const { logger } = require("@/logger").scoped("API");
 
 const { Router } = require("express");
 const passport = require("passport");

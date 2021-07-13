@@ -1,9 +1,13 @@
 const express = require("express");
 const httpErrors = require("http-errors");
-const { logger } = require("@/logger").scoped("express");
+const { logger } = require("@/logger").scoped("HTTP");
+const pino = require("pino");
 const pinoHttp = require("pino-http");
+const { Writable: WritableStream } = require("stream");
 
 module.exports = function main(options, cb) {
+  logger.wait("Starting");
+
   // Set default options
   const ready = cb || function () {};
   const opts = Object.assign(
@@ -39,21 +43,33 @@ module.exports = function main(options, cb) {
   process.on("uncaughtException", unhandledError);
   process.on("unhandledRejection", unhandledError);
 
-  logger.wait("Starting");
-
   // Create the express app
   const app = express();
 
-  // Common middleware
-  // app.use(/* ... */)
-  app.use(pinoHttp());
+  // Logger
+  class PinoToSignale extends WritableStream {
+    write(json) {
+      const data = JSON.parse(json);
+      const method = data.req.method,
+        url = data.req.url,
+        code = data.res.statusCode;
 
-  // Register routes
-  // @NOTE: require here because this ensures that even syntax errors
-  // or other startup related errors are caught logged and debuggable.
-  // Alternativly, you could setup external logger handling for startup
-  // errors and handle them outside the node process.  I find this is
-  // better because it works out of the box even in local development.
+      let level = "info";
+      if (code >= 200) level = "success";
+      if (code >= 300) level = "watch";
+      if (code >= 400) level = "warn";
+      if (code >= 500) level = "error";
+
+      logger[level](`${method} - ${url} - ${code}`);
+    }
+  }
+  app.use(
+    pinoHttp({
+      logger: pino(new PinoToSignale()),
+    })
+  );
+
+  // Load API
   require("@/api")(app, opts);
 
   // Common error handlers
