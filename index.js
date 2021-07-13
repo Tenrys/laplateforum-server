@@ -4,6 +4,7 @@ const { logger } = require("@/logger").scoped("HTTP");
 const pino = require("pino");
 const pinoHttp = require("pino-http");
 const { Writable: WritableStream } = require("stream");
+require("colors");
 
 module.exports = function main(options, cb) {
   logger.wait("Starting");
@@ -47,6 +48,17 @@ module.exports = function main(options, cb) {
   const app = express();
 
   // Logger
+  const httpMethodsToColor = {
+    GET: "green",
+    POST: "blue",
+    PATCH: "magenta",
+    PUT: "yellow",
+    DELETE: "red",
+    HEAD: "brightYellow",
+    OPTIONS: "brightYellow",
+    CONNECT: "brightYellow",
+    TRACE: "brightYellow",
+  };
   class PinoToSignale extends WritableStream {
     write(json) {
       const data = JSON.parse(json);
@@ -60,7 +72,7 @@ module.exports = function main(options, cb) {
       if (code >= 400) level = "warn";
       if (code >= 500) level = "error";
 
-      logger[level](`${method} - ${url} - ${code}`);
+      logger[level](`${method[httpMethodsToColor[method]]} - ${url} - ${code}`);
     }
   }
   app.use(
