@@ -1,3 +1,5 @@
+const { validate, Joi } = require("express-validation");
+
 exports.missingKeys = obj => {
   return Object.keys(obj)
     .filter(x => !!!obj[x])
@@ -10,3 +12,7 @@ exports.hasAllKeys = obj => {
       .includes(key)
   );
 };
+exports.validate = obj => {
+  return validate(obj, { keyByField: true }, { abortEarly: false });
+};
+exports.Joi = Joi;

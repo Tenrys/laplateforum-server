@@ -1,4 +1,5 @@
 const express = require("express");
+const { ValidationError } = require("express-validation");
 const httpErrors = require("http-errors");
 const { logger } = require("@/logger").scoped("HTTP");
 const pino = require("pino");
@@ -85,20 +86,23 @@ module.exports = function main(options, cb) {
   require("@/api")(app, opts);
 
   // Common error handlers
-  app.use(function fourOhFourHandler(req, res, next) {
+  app.use((req, res, next) => {
     next(httpErrors(404, `Route not found: ${req.url}`));
   });
-  app.use(function fiveHundredHandler(err, req, res, next) {
+  app.use((err, req, res, next) => {
+    if (err instanceof ValidationError) {
+      return res.status(err.statusCode).json({
+        name: err.name,
+        message: err.message,
+        details: err.details,
+      });
+    }
     if (err.status >= 500) {
       logger.error(err);
     }
     res.status(err.status || 500).json({
-      messages: [
-        {
-          code: err.code || "InternalServerError",
-          message: err.message,
-        },
-      ],
+      name: err.code || "InternalServerError",
+      message: err.message,
     });
   });
 

@@ -1,4 +1,4 @@
-exports.up = function (knex) {
+exports.up = knex => {
   return knex.schema.createTable("votes", table => {
     table.integer("user_id").unsigned().notNullable();
     table.foreign("user_id").references("id").inTable("users");
@@ -9,6 +9,6 @@ exports.up = function (knex) {
   });
 };
 
-exports.down = function (knex) {
+exports.down = knex => {
   return knex.schema.dropTable("votes");
 };

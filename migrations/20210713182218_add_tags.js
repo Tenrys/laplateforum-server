@@ -1,11 +1,10 @@
-exports.up = function (knex) {
+exports.up = knex => {
   return knex.schema.createTable("tags", table => {
-    table.increments("id");
-    table.string("name").notNullable();
+    table.string("name").primary().notNullable();
     table.timestamps(true, true);
   });
 };
 
-exports.down = function (knex) {
+exports.down = knex => {
   return knex.schema.dropTable("tags");
 };

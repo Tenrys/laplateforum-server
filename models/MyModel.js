@@ -1,13 +1,15 @@
 const { Model } = require("objection");
 
 module.exports = class MyModel extends Model {
-  toSafeJSON() {
-    const data = {};
+  $formatJson(json) {
+    json = super.$formatJson(json);
 
-    for (const field of this.constructor.safeFields) {
-      data[field] = this[field];
+    if (Array.isArray(this.constructor.unsafeFields)) {
+      for (const field of Object.keys(json)) {
+        if (this.constructor.unsafeFields.includes(field)) delete json[field];
+      }
     }
 
-    return data;
+    return json;
   }
 };

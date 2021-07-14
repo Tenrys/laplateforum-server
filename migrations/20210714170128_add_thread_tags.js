@@ -1,4 +1,4 @@
-exports.up = function (knex) {
+exports.up = knex => {
   return knex.schema.createTable("thread_tags", table => {
     table.integer("thread_id").unsigned().notNullable();
     table
@@ -7,10 +7,10 @@ exports.up = function (knex) {
       .inTable("threads")
       .onDelete("CASCADE")
       .onUpdate("CASCADE");
-    table.integer("tag_id").unsigned().notNullable();
+    table.string("tag_name").notNullable();
     table
-      .foreign("tag_id")
-      .references("id")
+      .foreign("tag_name")
+      .references("name")
       .inTable("tags")
       .onDelete("CASCADE")
       .onUpdate("CASCADE");
@@ -18,6 +18,6 @@ exports.up = function (knex) {
   });
 };
 
-exports.down = function (knex) {
+exports.down = knex => {
   return knex.schema.dropTable("thread_tags");
 };

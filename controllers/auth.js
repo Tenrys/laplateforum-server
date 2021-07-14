@@ -5,7 +5,7 @@ const LocalStrategy = require("passport-local").Strategy;
 const JWTStrategy = require("passport-jwt").Strategy,
   ExtractJWT = require("passport-jwt").ExtractJwt;
 const jwt = require("jsonwebtoken");
-const { missingKeys, hasAllKeys } = require("@/utils");
+const { validate, Joi } = require("@/utils");
 
 passport.use(
   "register",
@@ -16,22 +16,13 @@ passport.use(
     },
     async (username, password, done) => {
       try {
-        const required = { username, password };
-
-        if (!hasAllKeys(required)) {
-          return done(null, false, {
-            message: `Missing ${missingKeys(required)}`,
-          });
-        }
-
         const user = await User.query().findOne({ username });
         if (user) {
           if (user.username == username)
             return done(null, false, { message: "Username already exists" });
         }
 
-        const newUser = await User.query().insert({ ...required, passowrd: undefined });
-        await newUser.setPassword(password);
+        const newUser = await User.register(username, password);
 
         return done(null, newUser);
       } catch (err) {
@@ -68,6 +59,7 @@ passport.use(
   )
 );
 
+// TODO: Implement refresh tokens
 passport.use(
   new JWTStrategy(
     {
@@ -87,7 +79,17 @@ passport.use(
 module.exports = api => {
   auth = new Router();
 
-  auth.post("/register", async (req, res, next) => {
+  const validator = validate(
+    {
+      body: Joi.object({
+        username: Joi.string().alphanum().min(2).max(32).required(),
+        password: Joi.string().required().min(8).max(128),
+      }),
+    },
+    { keyByField: true },
+    { abortEarly: false }
+  );
+  auth.post("/register", validator, async (req, res, next) => {
     passport.authenticate("register", { session: false }, async (err, user, info) => {
       try {
         if (err || !user) {
@@ -106,16 +108,16 @@ module.exports = api => {
     })(req, res, next);
   });
 
-  const loginCallback = (res, user, toDetails) => async err => {
+  const loginCallback = (res, user) => async err => {
     if (err) return next(err);
 
     const body = { id: user.id, username: user.username };
     const token = jwt.sign({ user: body }, process.env.JWT_SECRET);
 
-    return res.json({ success: true, token, user: user.toSafeJSON(), toDetails });
+    return res.json({ success: true, token, user });
   };
 
-  auth.post("/login", async (req, res, next) => {
+  auth.post("/login", validator, async (req, res, next) => {
     return passport.authenticate("login", async (err, user, info) => {
       try {
         if (err || !user) {

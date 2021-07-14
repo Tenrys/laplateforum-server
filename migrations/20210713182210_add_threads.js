@@ -1,4 +1,4 @@
-exports.up = function (knex) {
+exports.up = knex => {
   return knex.schema.createTable("threads", table => {
     table.increments("id");
     table.integer("user_id").unsigned().notNullable();
@@ -8,6 +8,6 @@ exports.up = function (knex) {
   });
 };
 
-exports.down = function (knex) {
+exports.down = knex => {
   return knex.schema.dropTable("threads");
 };
