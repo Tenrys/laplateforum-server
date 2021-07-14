@@ -1,8 +1,11 @@
-
-exports.up = function(knex) {
-  
+exports.up = function (knex) {
+  return knex.schema.createTable("tags", table => {
+    table.increments("id");
+    table.string("name").notNullable();
+    table.timestamps(true, true);
+  });
 };
 
-exports.down = function(knex) {
-  
+exports.down = function (knex) {
+  return knex.schema.dropTable("tags");
 };

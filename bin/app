@@ -1,13 +1,13 @@
 #! /usr/bin/env node
 
 // Register module aliases
+const { sep } = require("path");
 const paths = {};
-const mainPath = __dirname.split("/").slice(0, -1).join("/") + "/";
+const mainPath = __dirname.split(sep).slice(0, -1).join(sep) + sep;
 for (const [alias, path] of Object.entries(require("../jsconfig.json").compilerOptions.paths)) {
   if (alias.includes("*")) continue;
   paths[alias] = mainPath + path.join(); // [ 'flat' ] -> 'flat'
 }
-
 require("module-alias").addAliases(paths);
 
 // Load environment variables from .env file.
