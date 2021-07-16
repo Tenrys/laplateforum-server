@@ -12,6 +12,7 @@
   - [ ] User statistics
 - [ ] Instant messaging (WebSockets?)
   - [ ] Being connected with the app at any given time should show you as online
+- [ ] Seeds and Postman tests
 
 If I have time:
 
