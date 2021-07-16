@@ -1,7 +1,7 @@
 # Remaining features
 
 - [ ] Threads
-  - [ ] Number of links, replies, unique users
+  - [x] Number of links, replies, unique users
   - [ ] Post voting
   - [ ] Tag management
   - [ ] Pick an answer for the thread

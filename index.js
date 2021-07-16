@@ -37,9 +37,8 @@ module.exports = function main(options, cb) {
 
     // If server has started, close it down
     if (serverStarted) {
-      server.close(function () {
-        process.exit(1);
-      });
+      server.close(); // Unclean I think but this works better, who cares.
+      process.exit(1);
     }
   }
   process.on("uncaughtException", unhandledError);
@@ -100,7 +99,7 @@ module.exports = function main(options, cb) {
     if (err.status >= 500) {
       logger.error(err);
     }
-    res.status(err.status || 500).json({
+    return res.status(err.status || 500).json({
       name: err.code || "InternalServerError",
       message: err.message,
     });

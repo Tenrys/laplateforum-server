@@ -1,4 +1,5 @@
 const MyModel = require("@models/MyModel");
+const getUrls = require("get-urls");
 
 module.exports = class Thread extends MyModel {
   static get tableName() {
@@ -7,6 +8,14 @@ module.exports = class Thread extends MyModel {
 
   static get idColumn() {
     return "id";
+  }
+
+  async $afterFind() {
+    const posts = await this.$relatedQuery("posts").withGraphFetched("author"); // [posts, posts.author] would have worked too
+    this.links = posts.map(post => Array.from(getUrls(post.body))).flat();
+    this.participantCount = posts
+      .map(post => post.author.id)
+      .filter((id, index, self) => self.indexOf(id) === index).length;
   }
 
   static relationMappings() {

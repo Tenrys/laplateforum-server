@@ -1,9 +1,7 @@
 const { Router } = require("express");
 const { User, Thread, Post } = require("@models");
-const passport = require("passport");
-const { validate, Joi } = require("@/utils");
+const { authenticate, validate, Joi } = require("@/utils");
 const httpErrors = require("http-errors");
-const { await } = require("signale");
 
 // TODO: i18n Joi?
 
@@ -25,7 +23,7 @@ module.exports = api => {
   // Create a new thread
   threads.post(
     "/",
-    passport.authenticate("jwt", { session: false }),
+    authenticate,
     validate({
       body: Joi.object({
         title: Joi.string().min(8).required(),
@@ -36,7 +34,7 @@ module.exports = api => {
       const { title, body } = req.body;
 
       const author = await User.query().findById(req.user.id);
-      const thread = await Thread.query().insertGraph(
+      const thread = await Thread.query().insertGraphAndFetch(
         {
           title,
           author,
@@ -52,7 +50,7 @@ module.exports = api => {
   // Reply to a thread
   threads.post(
     "/:id",
-    passport.authenticate("jwt", { session: false }),
+    authenticate,
     validate({
       params: Joi.object({
         id: Joi.number().required(),
@@ -66,13 +64,8 @@ module.exports = api => {
       const { body } = req.body;
 
       const author = await User.query().findById(req.user.id);
-      const thread = await Thread.query().findById(id);
-      const post = await Post.query().insertGraph(
-        {
-          thread,
-          author,
-          body,
-        },
+      const post = await Thread.query().upsertGraphAndFetch(
+        { id, posts: [{ body, author }] },
         { relate: true }
       );
 
@@ -102,7 +95,7 @@ module.exports = api => {
   // Edit a post
   threads.put(
     "/:id/:postId",
-    passport.authenticate("jwt", { session: false }),
+    authenticate,
     validate({
       params: Joi.object({
         id: Joi.number().required(),
@@ -126,7 +119,7 @@ module.exports = api => {
   // Delete a post
   threads.delete(
     "/:id/:postId",
-    passport.authenticate("jwt", { session: false }),
+    authenticate,
     validate({
       params: Joi.object({
         id: Joi.number().required(),
@@ -146,7 +139,7 @@ module.exports = api => {
   // Edit a thread
   threads.put(
     "/:id",
-    passport.authenticate("jwt", { session: false }),
+    authenticate,
     validate({
       params: Joi.object({
         id: Joi.number().required(),
@@ -162,7 +155,7 @@ module.exports = api => {
       const { title, body } = req.body;
 
       const post = await Thread.relatedQuery("posts").for(id).first();
-      const thread = await Thread.query().upsertGraph(
+      const thread = await Thread.query().upsertGraphAndFetch(
         { id, title, posts: [{ id: post.id, body }] },
         { relate: true }
       );
@@ -174,7 +167,7 @@ module.exports = api => {
   // Delete a thread
   threads.delete(
     "/:id",
-    passport.authenticate("jwt", { session: false }),
+    authenticate,
     validate({
       params: Joi.object({
         id: Joi.number().required(),
@@ -189,6 +182,8 @@ module.exports = api => {
       return res.json({ success: true });
     }
   );
+
+  require("./votes")(threads);
 
   return threads;
 };
