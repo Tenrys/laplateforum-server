@@ -18,6 +18,53 @@ module.exports = class Thread extends MyModel {
       .filter((id, index, self) => self.indexOf(id) === index).length;
   }
 
+  static async create(author, title, body, tags) {
+    let thread = await this.query().insertGraph(
+      {
+        author,
+        title,
+        posts: [{ author, body }],
+      },
+      { relate: true }
+    );
+    if (tags) await thread.updateTags(tags);
+    return thread.$query().withGraphFetched("[author, tags, posts]");
+  }
+
+  async edit(title, body, tags) {
+    await this.$query().update({ title });
+    await this.$relatedQuery("posts").first().update({ body });
+    if (tags) await this.updateTags(tags);
+    return this.$query().withGraphFetched("[author, tags, posts]");
+  }
+
+  async updateTags(tags) {
+    const { Tag } = require("@models");
+
+    const currentTags = await this.$relatedQuery("tags");
+    const currentTagNames = currentTags.map(tag => tag.name);
+    const newTags = tags.filter(tag => !currentTagNames.includes(tag));
+    const missingTags = currentTagNames.filter(tag => !newTags.includes(tag));
+
+    for (const newTag of newTags) {
+      const tag = await Tag.query().findById(newTag);
+      if (!tag) {
+        await this.$relatedQuery("tags").insert({ name: newTag });
+      } else {
+        await this.$relatedQuery("tags").relate(newTag);
+      }
+    }
+    for (const missingTag of missingTags) {
+      const tag = currentTags.find(({ name }) => name === missingTag);
+      await tag.$relatedQuery("threads").for([this, tag]).unrelate();
+
+      const uses = (await tag.$relatedQuery("threads")).length;
+      if (uses <= 0) {
+        await tag.$query().delete();
+      }
+    }
+  }
+
   static relationMappings() {
     const { User, Post, Tag } = require("@models");
 

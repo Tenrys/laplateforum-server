@@ -28,20 +28,18 @@ module.exports = api => {
       body: Joi.object({
         title: Joi.string().min(8).required(),
         body: Joi.string().min(8).required(),
+        tags: Joi.array().items(
+          Joi.string()
+            .min(1)
+            .pattern(/^[a-z0-9\-]*$/)
+        ),
       }),
     }),
     async (req, res, next) => {
-      const { title, body } = req.body;
+      const { title, body, tags } = req.body;
 
       const author = await User.query().findById(req.user.id);
-      const thread = await Thread.query().insertGraphAndFetch(
-        {
-          title,
-          author,
-          posts: [{ body, author }],
-        },
-        { relate: true }
-      );
+      const thread = await Thread.create(author, title, body, tags);
 
       return res.json(thread);
     }
@@ -147,18 +145,21 @@ module.exports = api => {
       body: Joi.object({
         title: Joi.string().min(8).required(),
         body: Joi.string().min(8).required(),
+        tags: Joi.array().items(
+          Joi.string()
+            .min(1)
+            .pattern(/^[a-z0-9\-]*$/)
+        ),
       }),
     }),
     hasPermission,
     async (req, res, next) => {
       const { id } = req.params;
-      const { title, body } = req.body;
+      const { title, body, tags } = req.body;
 
-      const post = await Thread.relatedQuery("posts").for(id).first();
-      const thread = await Thread.query().upsertGraphAndFetch(
-        { id, title, posts: [{ id: post.id, body }] },
-        { relate: true }
-      );
+      const thread = await Thread.query()
+        .findById(id)
+        .then(thread => thread.edit(title, body, tags));
 
       return res.json(thread);
     }

@@ -20,10 +20,10 @@ exports.validate = obj => {
 };
 exports.Joi = Joi;
 exports.authenticate = async (req, res, next) => {
-  return passport.authenticate("jwt", async (err, user) => {
+  return passport.authenticate("jwt", async (err, user, info) => {
     try {
       if (err || !user) {
-        return next(err);
+        return next(info);
       }
       if (!(await User.query().findById(user.id))) {
         return next(httpErrors(401, "User not found"));
