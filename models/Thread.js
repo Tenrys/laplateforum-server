@@ -2,6 +2,8 @@ const MyModel = require("@models/MyModel");
 const getUrls = require("get-urls");
 
 module.exports = class Thread extends MyModel {
+  static unsafeFields = ["subscribers"];
+
   static get tableName() {
     return "threads";
   }
@@ -28,14 +30,14 @@ module.exports = class Thread extends MyModel {
       { relate: true }
     );
     if (tags) await thread.updateTags(tags);
-    return thread.$query().withGraphFetched("[author, tags, posts]");
+    return thread.$query().withGraphFetched("[tags, posts]");
   }
 
   async edit(title, body, tags) {
     await this.$query().update({ title });
     await this.$relatedQuery("posts").first().update({ body });
     if (tags) await this.updateTags(tags);
-    return this.$query().withGraphFetched("[author, tags, posts]");
+    return this.$query().withGraphFetched("tags");
   }
 
   async updateTags(tags) {
@@ -101,7 +103,7 @@ module.exports = class Thread extends MyModel {
         relation: MyModel.ManyToManyRelation,
         modelClass: User,
         join: {
-          from: "thread.id",
+          from: "threads.id",
           through: {
             from: "threadSubscriptions.threadId",
             to: "threadSubscriptions.userId",

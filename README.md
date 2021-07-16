@@ -1,12 +1,12 @@
 # Remaining features
 
-- [ ] Threads
+- [x] Threads
   - [x] Number of links, replies, unique users
   - [x] Post voting
   - [x] Tag management
-  - [ ] Pick an answer for the thread
-  - [ ] Subscriptions
-  - [ ] Set thread status (closed, open)
+  - [x] Pick an answer for the thread
+  - [x] Subscriptions
+  - [x] Set thread status (closed, open)
 - [ ] Users
   - [ ] Profile modification
   - [ ] User statistics

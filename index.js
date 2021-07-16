@@ -100,7 +100,7 @@ module.exports = function main(options, cb) {
       logger.error(err);
     }
     return res.status(err.status || 500).json({
-      name: err.code || "InternalServerError",
+      name: err.name || err.code || "InternalServerError",
       message: err.message,
     });
   });

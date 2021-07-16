@@ -1,7 +1,6 @@
 const { Router } = require("express");
 const { User, Thread, Post } = require("@models");
-const { authenticate, validate, Joi } = require("@/utils");
-const httpErrors = require("http-errors");
+const { authenticate, validate, Joi, hasThreadPermission, denyIfThreadClosed } = require("@/utils");
 
 // TODO: i18n Joi?
 
@@ -9,7 +8,7 @@ module.exports = api => {
   threads = new Router();
 
   // Get all or one threads
-  threads.get("/:id?", async (req, res, next) => {
+  threads.get("/:id(\\d+)?", async (req, res, next) => {
     const { id } = req.params;
 
     let query = Thread.query();
@@ -17,7 +16,7 @@ module.exports = api => {
     query = query.withGraphFetched("[author, tags, posts]");
     const threads = await query;
 
-    return res.json(threads);
+    return res.json({ result: threads });
   });
 
   // Create a new thread
@@ -41,22 +40,20 @@ module.exports = api => {
       const author = await User.query().findById(req.user.id);
       const thread = await Thread.create(author, title, body, tags);
 
-      return res.json(thread);
+      return res.json({ result: thread });
     }
   );
 
   // Reply to a thread
   threads.post(
-    "/:id",
+    "/:id(\\d+)",
     authenticate,
     validate({
-      params: Joi.object({
-        id: Joi.number().required(),
-      }),
       body: Joi.object({
         body: Joi.string().min(8).required(),
       }),
     }),
+    denyIfThreadClosed,
     async (req, res, next) => {
       const { id } = req.params;
       const { body } = req.body;
@@ -67,32 +64,13 @@ module.exports = api => {
         { relate: true }
       );
 
-      return res.json(post);
+      return res.json({ result: post });
     }
   );
 
-  const hasPermission = async (req, res, next) => {
-    const user = await User.query().findById(req.user.id).withGraphFetched("role");
-    const { id, postId } = req.params;
-
-    if (user.role.isAdmin) {
-      return next();
-    }
-    if (postId) {
-      const post = await Post.query().findById(postId).withGraphFetched("author");
-      if (!post) return next(httpErrors(404));
-      if (post.author.id !== user.id) return next(httpErrors(403));
-    } else if (id) {
-      const thread = await Thread.query().findById(id).withGraphFetched("author");
-      if (!thread) return next(httpErrors(404));
-      if (thread.author.id !== user.id) return next(httpErrors(403));
-    }
-    return next();
-  };
-
   // Edit a post
   threads.put(
-    "/:id/:postId",
+    "/:id(\\d+)/:postId(\\d+)",
     authenticate,
     validate({
       params: Joi.object({
@@ -103,20 +81,21 @@ module.exports = api => {
         body: Joi.string().min(8).required(),
       }),
     }),
-    hasPermission,
+    denyIfThreadClosed,
+    hasThreadPermission,
     async (req, res, next) => {
       const { id, postId } = req.params;
       const { body } = req.body;
 
-      const post = await Post.query().findById(postId).updateAndFetch({ body });
+      const post = await Post.query().updateAndFetchById(postId, { body });
 
-      return res.json(post);
+      return res.json({ result: post });
     }
   );
 
   // Delete a post
   threads.delete(
-    "/:id/:postId",
+    "/:id(\\d+)/:postId(\\d+)",
     authenticate,
     validate({
       params: Joi.object({
@@ -124,7 +103,8 @@ module.exports = api => {
         postId: Joi.number().required(),
       }),
     }),
-    hasPermission,
+    denyIfThreadClosed,
+    hasThreadPermission,
     async (req, res, next) => {
       const { id, postId } = req.params;
 
@@ -136,7 +116,7 @@ module.exports = api => {
 
   // Edit a thread
   threads.put(
-    "/:id",
+    "/:id(\\d+)",
     authenticate,
     validate({
       params: Joi.object({
@@ -152,7 +132,8 @@ module.exports = api => {
         ),
       }),
     }),
-    hasPermission,
+    denyIfThreadClosed,
+    hasThreadPermission,
     async (req, res, next) => {
       const { id } = req.params;
       const { title, body, tags } = req.body;
@@ -161,20 +142,20 @@ module.exports = api => {
         .findById(id)
         .then(thread => thread.edit(title, body, tags));
 
-      return res.json(thread);
+      return res.json({ result: thread });
     }
   );
 
   // Delete a thread
   threads.delete(
-    "/:id",
+    "/:id(\\d+)",
     authenticate,
     validate({
       params: Joi.object({
         id: Joi.number().required(),
       }),
     }),
-    hasPermission,
+    hasThreadPermission,
     async (req, res, next) => {
       const { id } = req.params;
 
@@ -185,6 +166,9 @@ module.exports = api => {
   );
 
   require("./votes")(threads);
+  require("./answers")(threads);
+  require("./status")(threads);
+  require("./subscriptions")(threads);
 
   return threads;
 };
