@@ -1,8 +1,10 @@
 const MyModel = require("@models/MyModel");
 const bcrypt = require("bcrypt");
+const { DateTime } = require("luxon");
 
 module.exports = class User extends MyModel {
   static unsafeFields = ["password"];
+  static online = [];
 
   static get tableName() {
     return "users";
@@ -24,11 +26,37 @@ module.exports = class User extends MyModel {
   async setPassword(password) {
     const hash = await bcrypt.hash(password, 8);
 
-    await this.$query().patch({ password: hash });
+    await this.$query().patch({
+      password: hash,
+      lastPasswordChange: DateTime.now().toSQL({ includeOffset: false }),
+    });
   }
 
   async isValidPassword(password) {
     return await bcrypt.compare(password, this.password);
+  }
+
+  async editProfile(data, avatar) {
+    const { password, status, website, twitter } = data;
+    if (avatar) avatar = avatar.filename;
+    let passwordHash;
+
+    if (password && !(await this.isValidPassword(password))) {
+      passwordHash = await bcrypt.hash(password, 8);
+    }
+
+    return await this.$query().patchAndFetch({
+      password: passwordHash,
+      status,
+      website,
+      twitter,
+      avatar,
+      ...{
+        lastPasswordChange: !!passwordHash
+          ? DateTime.now().toSQL({ includeOffset: false })
+          : undefined,
+      },
+    });
   }
 
   static get relationMappings() {
@@ -52,13 +80,11 @@ module.exports = class User extends MyModel {
         },
       },
       posts: {
-        threads: {
-          relation: MyModel.HasManyRelation,
-          modelClass: Post,
-          join: {
-            from: "users.id",
-            to: "post.userId",
-          },
+        relation: MyModel.HasManyRelation,
+        modelClass: Post,
+        join: {
+          from: "users.id",
+          to: "posts.userId",
         },
       },
       votes: {

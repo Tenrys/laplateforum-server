@@ -76,19 +76,15 @@ passport.use(
   )
 );
 
-module.exports = api => {
+module.exports = app => {
   auth = new Router();
 
-  const validator = validate(
-    {
-      body: Joi.object({
-        username: Joi.string().alphanum().min(2).max(32).required(),
-        password: Joi.string().required().min(8).max(128),
-      }),
-    },
-    { keyByField: true },
-    { abortEarly: false }
-  );
+  const validator = validate({
+    body: Joi.object({
+      username: Joi.string().alphanum().min(2).max(32).required(),
+      password: Joi.string().required().min(8).max(128),
+    }),
+  });
   auth.post("/register", validator, async (req, res, next) => {
     passport.authenticate("register", { session: false }, async (err, user, info) => {
       try {
@@ -111,7 +107,7 @@ module.exports = api => {
   const loginCallback = (res, user) => async err => {
     if (err) return next(err);
 
-    const body = { id: user.id, username: user.username };
+    const body = { id: user.id, lastPasswordChange: user.lastPasswordChange };
     const token = jwt.sign({ user: body }, process.env.JWT_SECRET);
 
     return res.json({ success: true, token, user });

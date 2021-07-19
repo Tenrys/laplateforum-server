@@ -2,6 +2,7 @@ const { validate, Joi } = require("express-validation");
 const passport = require("passport");
 const { User, Post, Thread } = require("@models");
 const httpErrors = require("http-errors");
+const { DateTime } = require("luxon");
 
 exports.missingKeys = obj => {
   return Object.keys(obj)
@@ -20,13 +21,20 @@ exports.validate = obj => {
 };
 exports.Joi = Joi;
 exports.authenticate = async (req, res, next) => {
-  return passport.authenticate("jwt", async (err, user, info) => {
+  return passport.authenticate("jwt", async (err, data, info) => {
     try {
-      if (err || !user) {
+      if (err || !data) {
         return next(info);
       }
-      if (!(await User.query().findById(user.id))) {
+      const user = await User.query().findById(data.id);
+      if (!user) {
         return next(httpErrors(401, "User not found"));
+      }
+      const validDate =
+        DateTime.fromJSDate(user.lastPasswordChange).toUTC() >
+        DateTime.fromISO(data.lastPasswordChange).toUTC();
+      if (!data.lastPasswordChange || validDate) {
+        return next(httpErrors(403, "Invalid token"));
       }
 
       return req.login(user, { session: false }, next);
@@ -36,10 +44,10 @@ exports.authenticate = async (req, res, next) => {
   })(req, res, next);
 };
 exports.hasThreadPermission = async (req, res, next) => {
-  const user = await User.query().findById(req.user.id).withGraphFetched("role");
+  const role = await User.relatedQuery("role").for(req.user.id).first();
   const { id, postId } = req.params;
 
-  if (user.role.isAdmin) {
+  if (role.isAdmin) {
     return next();
   }
   if (postId) {
@@ -54,10 +62,10 @@ exports.hasThreadPermission = async (req, res, next) => {
   return next();
 };
 exports.denyIfThreadClosed = async (req, res, next) => {
-  const user = await User.query().findById(req.user.id).withGraphFetched("role");
+  const role = await User.relatedQuery("role").for(req.user.id).first();
   const { id } = req.params;
 
-  if (user.role.isAdmin) {
+  if (role.isAdmin) {
     return next();
   }
   if (id) {
@@ -66,4 +74,13 @@ exports.denyIfThreadClosed = async (req, res, next) => {
     if (thread.closed) return next(httpErrors(403, "This thread is closed"));
   }
   return next();
+};
+exports.isAdmin = async (req, res, next) => {
+  const role = await User.relatedQuery("role").for(req.user.id).first();
+
+  if (role.isAdmin) {
+    return next();
+  } else {
+    return next(httpErrors(403));
+  }
 };

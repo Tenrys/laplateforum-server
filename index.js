@@ -1,7 +1,8 @@
+const { logger } = require("@/logger").scoped("HTTP");
+
 const express = require("express");
 const { ValidationError } = require("express-validation");
 const httpErrors = require("http-errors");
-const { logger } = require("@/logger").scoped("HTTP");
 const pino = require("pino");
 const pinoHttp = require("pino-http");
 const { Writable: WritableStream } = require("stream");
@@ -119,6 +120,10 @@ module.exports = function main(options, cb) {
     serverStarted = true;
     const addr = server.address();
     logger.success(`Started at ${opts.host || addr.host || "localhost"}:${addr.port}`);
+
+    app.server = server;
+    app.io = require("@/socketio")(app);
+
     ready(err, app, server);
   });
 };

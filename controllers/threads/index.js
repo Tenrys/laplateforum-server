@@ -4,8 +4,8 @@ const { authenticate, validate, Joi, hasThreadPermission, denyIfThreadClosed } =
 
 // TODO: i18n Joi?
 
-module.exports = api => {
-  threads = new Router();
+module.exports = app => {
+  const threads = new Router();
 
   // Get all or one threads
   threads.get("/:id(\\d+)?", async (req, res, next) => {
