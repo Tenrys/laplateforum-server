@@ -13,6 +13,7 @@ module.exports = class Thread extends MyModel {
   }
 
   async $afterFind() {
+    if (!this.id) return;
     const posts = await this.$relatedQuery("posts").withGraphFetched("author"); // [posts, posts.author] would have worked too
     this.links = posts.map(post => Array.from(getUrls(post.body))).flat();
     this.participantCount = posts
@@ -46,25 +47,32 @@ module.exports = class Thread extends MyModel {
     const currentTags = await this.$relatedQuery("tags");
     const currentTagNames = currentTags.map(tag => tag.name);
     const newTags = tags.filter(tag => !currentTagNames.includes(tag));
-    const missingTags = currentTagNames.filter(tag => !newTags.includes(tag));
+    const missingTags = currentTagNames.filter(tag => !tags.includes(tag));
 
-    for (const newTag of newTags) {
-      const tag = await Tag.query().findById(newTag);
-      if (!tag) {
-        await this.$relatedQuery("tags").insert({ name: newTag });
-      } else {
-        await this.$relatedQuery("tags").relate(newTag);
+    await Tag.transaction(async trx => {
+      for (const newTag of newTags) {
+        const tag = await Tag.query(trx).findById(newTag);
+        if (!tag) {
+          await this.$relatedQuery("tags", trx).insert({ name: newTag });
+        } else {
+          await this.$relatedQuery("tags", trx).relate(newTag);
+        }
       }
-    }
-    for (const missingTag of missingTags) {
-      const tag = currentTags.find(({ name }) => name === missingTag);
-      await tag.$relatedQuery("threads").for([this, tag]).unrelate();
 
-      const uses = (await tag.$relatedQuery("threads")).length;
-      if (uses <= 0) {
-        await tag.$query().delete();
+      for (const missingTag of missingTags) {
+        const tag = currentTags.find(({ name }) => name === missingTag);
+        await tag.$relatedQuery("threads", trx).for([this, tag]).unrelate();
+
+        const uses = await tag
+          .$relatedQuery("threads", trx)
+          .count("thread_id")
+          .first()
+          .then(res => Object.values(res)[0]);
+        if (uses <= 0) {
+          await tag.$query(trx).delete();
+        }
       }
-    }
+    });
   }
 
   static relationMappings() {

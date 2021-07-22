@@ -41,7 +41,7 @@ passport.use(
     },
     async (username, password, done) => {
       try {
-        user = await User.query().findOne({ username });
+        user = await User.query().findOne({ username }).withGraphFetched("role");
         if (!user) {
           return done(null, false, { message: "Wrong password" }); // we shouldn't tell them anything special
         }
@@ -59,7 +59,6 @@ passport.use(
   )
 );
 
-// TODO: Implement refresh tokens
 passport.use(
   new JWTStrategy(
     {

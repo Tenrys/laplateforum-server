@@ -43,6 +43,7 @@ exports.authenticate = async (req, res, next) => {
     }
   })(req, res, next);
 };
+const noPostOwnerCheckRoutes = ["/:id/:postId/answer"];
 exports.hasThreadPermission = async (req, res, next) => {
   const role = await User.relatedQuery("role").for(req.user.id).first();
   const { id, postId } = req.params;
@@ -50,14 +51,15 @@ exports.hasThreadPermission = async (req, res, next) => {
   if (role.isAdmin) {
     return next();
   }
-  if (postId) {
+  if (postId && !noPostOwnerCheckRoutes.includes(req.route.path)) {
     const author = await Post.relatedQuery("author").for(postId).first();
     if (!author) return next(httpErrors(404, "Post not found"));
-    if (author.id !== user.id) return next(httpErrors(403, "This post doesn't belong to you"));
+    if (author.id !== req.user.id) return next(httpErrors(403, "This post doesn't belong to you"));
   } else if (id) {
     const author = await Thread.relatedQuery("author").for(id).first();
     if (!author) return next(httpErrors(404, "Thread not found"));
-    if (author.id !== user.id) return next(httpErrors(403, "This thread doesn't belong to you"));
+    if (author.id !== req.user.id)
+      return next(httpErrors(403, "This thread doesn't belong to you"));
   }
   return next();
 };

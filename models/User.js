@@ -45,18 +45,37 @@ module.exports = class User extends MyModel {
       passwordHash = await bcrypt.hash(password, 8);
     }
 
-    return await this.$query().patchAndFetch({
-      password: passwordHash,
-      status,
-      website,
-      twitter,
-      avatar,
-      ...{
-        lastPasswordChange: !!passwordHash
-          ? DateTime.now().toSQL({ includeOffset: false })
-          : undefined,
-      },
-    });
+    return await this.$query()
+      .patchAndFetch({
+        password: passwordHash,
+        status,
+        website,
+        twitter,
+        avatar,
+        ...{
+          lastPasswordChange: !!passwordHash
+            ? DateTime.now().toSQL({ includeOffset: false })
+            : undefined,
+        },
+      })
+      .withGraphFetched("role");
+  }
+
+  async getStats() {
+    const threads = await this.$relatedQuery("threads")
+      .count("user_id")
+      .first()
+      .then(res => Object.values(res)[0]);
+    const posts = await this.$relatedQuery("posts")
+      .count("user_id")
+      .first()
+      .then(res => Object.values(res)[0]);
+    const votes = await this.$relatedQuery("votes")
+      .count("user_id")
+      .first()
+      .then(res => Object.values(res)[0]);
+
+    return { threads, posts, votes };
   }
 
   static get relationMappings() {

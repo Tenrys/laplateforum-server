@@ -16,5 +16,5 @@ require("dotenv").config();
 // Pass configuration to application
 require("../")({
   port: 8000,
-  host: "localhost",
+  host: "0.0.0.0",
 });

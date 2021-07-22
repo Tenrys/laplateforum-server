@@ -91,6 +91,8 @@ module.exports = function main(options, cb) {
   });
   app.use((err, req, res, next) => {
     if (err instanceof ValidationError) {
+      console.log({ message: err.message, details: err.details });
+
       return res.status(err.statusCode).json({
         name: err.name,
         message: err.message,
@@ -119,7 +121,7 @@ module.exports = function main(options, cb) {
 
     serverStarted = true;
     const addr = server.address();
-    logger.success(`Started at ${opts.host || addr.host || "localhost"}:${addr.port}`);
+    logger.success(`Started at http://${opts.host || addr.host || "localhost"}:${addr.port}`);
 
     app.server = server;
     app.io = require("@/socketio")(app);

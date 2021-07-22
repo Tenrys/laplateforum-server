@@ -13,7 +13,7 @@ module.exports = app => {
 
     let query = Thread.query();
     if (id) query = query.findById(id);
-    query = query.withGraphFetched("[author, tags, posts]");
+    query = query.withGraphFetched("[author, tags, posts.[author, votes]]");
     const threads = await query;
 
     return res.json({ result: threads });
@@ -58,11 +58,7 @@ module.exports = app => {
       const { id } = req.params;
       const { body } = req.body;
 
-      const author = await User.query().findById(req.user.id);
-      const post = await Thread.query().upsertGraphAndFetch(
-        { id, posts: [{ body, author }] },
-        { relate: true }
-      );
+      const post = await Thread.relatedQuery("posts").for(id).insert({ body, userId: req.user.id });
 
       return res.json({ result: post });
     }

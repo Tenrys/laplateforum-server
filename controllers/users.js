@@ -3,6 +3,7 @@ const { User } = require("@models");
 const { authenticate, validate, Joi, isAdmin } = require("@/utils");
 const multer = require("multer");
 const path = require("path");
+const httpErrors = require("http-errors");
 
 const validMimetypes = ["image/jpeg", "image/png"];
 const upload = multer({
@@ -25,10 +26,15 @@ const upload = multer({
 module.exports = app => {
   const users = new Router();
 
+  // TODO: Middleware to check for user existence and pass it to request object?
+  // TODO: Add more sanity checks?
+
   users.get("/:id(\\d+)", async (req, res, next) => {
     const { id } = req.params;
 
     const user = await User.query().findById(id).withGraphFetched("role");
+
+    if (!user) return next(httpErrors(404));
 
     return res.json({ result: user });
   });
@@ -38,39 +44,45 @@ module.exports = app => {
 
     const { avatar } = await User.query().findById(id);
 
-    return res.sendFile(path.join(app.uploadsPath, avatar));
+    if (!avatar) return res.redirect(`/assets/default-avatar.png`);
+
+    return res.redirect(`/uploads/${avatar}`);
   });
 
   users.get("/online", async (req, res, next) => {
     const { online } = User;
 
-    return res.json({ online });
+    return res.json({ result: online });
   });
 
   users.get("/:id(\\d+)/threads", async (req, res, next) => {
     const { id } = req.params;
 
-    const user = await User.relatedQuery("threads").for(id);
+    const threads = await User.relatedQuery("threads").for(id);
 
-    return res.json({ result: user });
+    if (!threads) return next(httpErrors(404));
+
+    return res.json({ result: threads });
   });
 
   users.get("/:id(\\d+)/posts", async (req, res, next) => {
     const { id } = req.params;
 
-    const user = await User.relatedQuery("posts").for(id);
+    const posts = await User.relatedQuery("posts").for(id);
 
-    return res.json({ result: user });
+    if (!posts) return next(httpErrors(404));
+
+    return res.json({ result: posts });
   });
 
   users.get("/:id(\\d+)/stats", async (req, res, next) => {
     const { id } = req.params;
 
-    const user = await User.query()
-      .findById(id)
-      .then(user => user.getStats());
+    const user = await User.query().findById(id);
 
-    return res.json({ result: user });
+    if (!user) return next(httpErrors(404));
+
+    return res.json({ result: await user.getStats() });
   });
 
   users.get("/me", authenticate, async (req, res, next) => {
@@ -113,9 +125,11 @@ module.exports = app => {
       const { id } = req.params;
       const { roleId } = req.body;
 
-      const user = await User.query()
-        .findById(id)
-        .then(user => user.$query().patchAndFetch({ roleId }));
+      let user = await User.query().findById(id);
+
+      if (!user) return next(httpErrors(404));
+
+      user = user.$query().patchAndFetch({ roleId });
 
       return res.json({ result: user });
     }
