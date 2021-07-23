@@ -5,7 +5,7 @@ const multer = require("multer");
 const path = require("path");
 const httpErrors = require("http-errors");
 
-const validMimetypes = ["image/jpeg", "image/png"];
+const validMimetypes = ["image/jpg", "image/jpeg", "image/png"];
 const upload = multer({
   storage: multer.diskStorage({
     destination: "./uploads",

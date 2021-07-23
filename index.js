@@ -99,7 +99,7 @@ module.exports = function main(options, cb) {
         details: err.details,
       });
     }
-    if (err.status >= 500) {
+    if (err.status >= 500 || err.code >= 500) {
       logger.error(err);
     }
     return res.status(err.status || 500).json({
